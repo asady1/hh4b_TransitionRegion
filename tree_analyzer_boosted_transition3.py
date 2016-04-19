@@ -61,6 +61,7 @@ def selections():
 def tree_preselection(file_string, isData=0, dataset="", cross_section=1.,systematic="", bbtag_cut=0.3,jet_btag_cut=-2):
 	print dataset
 	print dataset
+	#uploading file
 	try:
 		print file_string
 		myFile=TFile(file_string, "R")
@@ -68,18 +69,18 @@ def tree_preselection(file_string, isData=0, dataset="", cross_section=1.,system
 		tree.Print("*bbtag*")
 	except:
 		print "nofile"
-
+	#defining histo_weight (1 for data, from CountWeighted for MC)
 	if isData==1:
 		norm=1
 	else:
 		histo_weight=myFile.Get("CountWeighted")
 		print histo_weight, myFile
 		norm=histo_weight.GetBinContent(1)
-
+	#getting cross section
 	xsec=cross_section
 	print xsec, "cross_section"	
 	
-	
+	#making the analysis file
 	AnaysisFile_boosted=TFile("presel_Transition_"+systematic+"_"+file_string.split("/")[-1], "recreate")
 	MyTree = TTree("MyTree", "MyTree")
 		
@@ -140,30 +141,35 @@ def tree_preselection(file_string, isData=0, dataset="", cross_section=1.,system
 	
 	
 #	print tree
+	#looping over the entries in the tree
 	maxi=tree.GetEntries()
 	for entry in range(maxi):
 		tree.GetEntry(entry)
+		#defining puWeight and norm
 		if tree.isData:
 			puWeight=1.
 			norm=1.
 		else:
 			puWeight=tree.puWeight
 		weight=(cross_section)*(puWeight)/norm
+		#defining trigger_bit
 		if dataset=="BtagCSV":
 			trigger_bit=(not(tree.HLT_BIT_HLT_AK8DiPFJet250_200_TrimMass30_BTagCSV0p45_v>0) and not(tree.HLT_BIT_HLT_PFHT800_v>0) and tree.HLT_HH4bHighLumi>0)
 		else:
 			trigger_bit=(tree.HLT_BIT_HLT_AK8DiPFJet250_200_TrimMass30_BTagCSV0p45_v>0 or tree.HLT_BIT_HLT_PFHT800_v>0 or tree.HLT_HH4bHighLumi>0)
-
+			#restricting us to Vtype -1 or 4
 			if (tree.Vtype==-1 or tree.Vtype==4):
 				count_fatjets=0
 				count_jetsoutsidef=0
 				leading_mass_old=40.
 				leading_index=-1
+				#initializing arrays full of -1
 				Fatjets_array=numpy.zeros((10, 2))
 				jets_btag_array=numpy.zeros((20, 4))
 				Fatjets_array=Fatjets_array-1
 				jets_btag_array=jets_btag_array-1
 
+				#if we choose to run a systematic, this lets us know we did
 				if tree.nFatjetAK08ungroomed>1:
 					if systematic=="JEC_Up":
 						print systematic
@@ -173,30 +179,33 @@ def tree_preselection(file_string, isData=0, dataset="", cross_section=1.,system
 						print systematic
 					elif systematic=="JER_Down":
 						print systematic
-
+				#for each n jet, assigning ungroomed pruned mass to 0 and the place in the array to 1
 				for n in range(tree.nFatjetAK08ungroomed):
 					Fatjets_array[n][0]=tree.FatjetAK08ungroomed_mpruned[n]
 					Fatjets_array[n][1]=n
 		#					print "il mio vettore", Fatjets_array
-
+				#sorts by descending pruned mass value, then takes indices
 				Fatjets_array.view('f8,f8').sort(order=['f0'], axis=0)
 				Fatjets_array=Fatjets_array[::-1]
 				index_array=Fatjets_array[:,1]
 
+				#removes indices that are -1
 				index_array=index_array[(index_array >= 0)]
 				save_index=[]
 				save_jet_index=[]
 				
-
+				#for loop over jets starting from highest pruned massjet to lowest
 				for n1 in index_array:
 					n=int(n1)				
 					leading_index=n
 					
 					if (leading_index>=0):
+						#defining a correction factor (mprunedcorr/mpruned)
 						if tree.FatjetAK08ungroomed_mpruned[n]>0:
 							correction_factor=tree.FatjetAK08ungroomed_mprunedcorr[n]/tree.FatjetAK08ungroomed_mpruned[n]
 						else: correction_factor=1
 						print correction_factor, "correction_factor"
+						#cutting: abs(jeteta) < 2.5, jet bbtag > 0.4, pruned mass (not corr) > 40, tau21 < 0.6
 						if (abs(tree.FatjetAK08ungroomed_eta[leading_index])<jet_eta_cut and tree.FatjetAK08ungroomed_bbtag[leading_index]>bbtag_cut and tree.FatjetAK08ungroomed_mpruned[leading_index]>40 and (tree.FatjetAK08ungroomed_tau2[leading_index]/tree.FatjetAK08ungroomed_tau1[leading_index])<tau21_cut):
 	#						print "atcut ", 2
 				
@@ -205,13 +214,14 @@ def tree_preselection(file_string, isData=0, dataset="", cross_section=1.,system
 							fj_p4.SetPtEtaPhiM(tree.FatjetAK08ungroomed_pt[leading_index], tree.FatjetAK08ungroomed_eta[leading_index], tree.FatjetAK08ungroomed_phi[leading_index], tree.FatjetAK08ungroomed_mass[leading_index])								
 							fj_p4.Print()
 							print fj_p4.M()
+							#correcting the whole 4 vector by the correction factor
 							if (systematic=="FJEC_Up"): fj_p4*=correction_factor
 							if (systematic=="FJEC_Down"): fj_p4*=(2-correction_factor)
 							print systematic
 							fj_p4.Print()
 							print fj_p4.M()
 							for j in range(tree.nJet):
-
+								#assinging ak4 jet pt based on systematics
 								if (systematic=="JEC_Up"): jet_pT = tree.Jet_pt[j]*tree.Jet_corr_JECUp[j]/tree.Jet_corr[j]
 								elif (systematic=="JEC_Down"): jet_pT = tree.Jet_pt[j]*tree.Jet_corr_JECDown[j]/tree.Jet_corr[j]
 								elif (systematic=="JER_Up"): jet_pT = tree.Jet_pt[j]*tree.Jet_corr_JERUp[j]*tree.Jet_corr_JER[j]
@@ -222,6 +232,7 @@ def tree_preselection(file_string, isData=0, dataset="", cross_section=1.,system
 								j_p4=TLorentzVector()								
 								j_p4.SetPtEtaPhiM(jet_pT, tree.Jet_eta[j], tree.Jet_phi[j], tree.Jet_mass[j])						
 								deltaR=j_p4.DeltaR(fj_p4)
+								#saving all ak4 jets that meet ak4 jet pt > 30, abs(eta) < 2.1, cmvav2 > 0.185, deltaR between fatjet and ak4 jet > 1.5
 								if (jet_pT>jet_pT_cut and abs(tree.Jet_eta[j])<jet_eta_cut and tree.Jet_btagCMVAV2[j]>jet_btag_cut and deltaR>1.5):
 									count_jetsoutsidef+=1
 									save_jet_index.append(j)
@@ -230,9 +241,12 @@ def tree_preselection(file_string, isData=0, dataset="", cross_section=1.,system
 									jets_btag_array[j][1]=j
 									jets_btag_array[j][2]=leading_index
 									jets_btag_array[j][3]=jet_pT
+							#saving index of ak8 jet that satisfies these requirements along with the ak4 jets
 							if count_jetsoutsidef>1:
 								save_index.append(leading_index)
-							
+				#end for loop over ak8 jets
+				
+				#checking if the event falls into the fully boosted regime
 				b_evt[0]=0.
 				if  dataset!="BtagCSV":
 					if(tree.HLT_BIT_HLT_PFHT800_v>0):
