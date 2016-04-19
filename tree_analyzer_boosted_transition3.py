@@ -263,7 +263,7 @@ def tree_preselection(file_string, isData=0, dataset="", cross_section=1.,system
 														print "boosted6"
 														b_evt[0]=1.
 
-
+				#at least one ak8 jet meets selection, at least 2 ak4 jets meet selection
 				if (count_jetsoutsidef>=2 and count_fatjets>=1):
 					print "counted", entry
 					print save_jet_index, save_index
@@ -288,7 +288,7 @@ def tree_preselection(file_string, isData=0, dataset="", cross_section=1.,system
 						fatjets_mpruned.push_back(tree.FatjetAK08ungroomed_mpruned[j])
 						fatjets_bbtag.push_back(tree.FatjetAK08ungroomed_bbtag[j])
 						f_i=f_i+1
-#						
+#					ak4 jets sorted by btag csvv2 value	
 					jets_btag_array.view('f8,f8,f8, f8').sort(order=['f0'], axis=0)
 					jets_btag_array=jets_btag_array[::-1]
 					index_array2=jets_btag_array[:,1]
@@ -297,7 +297,7 @@ def tree_preselection(file_string, isData=0, dataset="", cross_section=1.,system
 					print jets_btag_array
 					print index_array2
 					j_i=0
-					
+					#from here to the end, saving a bunch of things
 					jets_pt.clear()
 					jets_eta.clear()
 					jets_phi.clear()
